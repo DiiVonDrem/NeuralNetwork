@@ -3,216 +3,147 @@
 #include <math.h>
 #include <time.h>
 
-// xor NeuralNetwork
-
 #define numInputs 2
-#define numHiddenNodes 2
+#define numHidden 2
 #define numOutputs 1
-#define numTrainingSets 4
+#define numSets 4
+#define lr 0.1
+#define epochs 10000
 
-double init_weights();
-double sigmoid(double x);
-double dSigmoid(double x);
-void shuffle(int *array, size_t n);
-int run();
+static inline double init_weight();
+static inline double sigmoid(double x);
+static inline double dSigmoid(double y);
+static inline void shuffle(int *a, size_t n);
+static inline void mat_vec_mul(const double *m, const double *v, double *o, int r, int c);
+static inline void vec_add(double *a, const double *b, int n);
+static inline void vec_sigmoid(double *v, int n);
 
-int main()
-{
+int main() {
     srand(time(NULL));
-    run();
-    system("pause");
-    return 0;
-}
 
-int run()
-{
-    const double lr = 0.1f;
+    const double X[numSets][numInputs] = {{0,0},{1,0},{0,1},{1,1}};
+    const double Y[numSets][numOutputs] = {{0},{1},{1},{0}};
 
-    double hiddenLayer[numHiddenNodes];
-    double outputLayer[numOutputs];
+    double W1[numHidden * numInputs], B1[numHidden];
+    double W2[numOutputs * numHidden], B2[numOutputs];
+    for (int i = 0; i < numHidden * numInputs; ++i) W1[i] = init_weight();
+    for (int i = 0; i < numOutputs * numHidden; ++i) W2[i] = init_weight();
+    for (int i = 0; i < numHidden; ++i) B1[i] = init_weight();
+    for (int i = 0; i < numOutputs; ++i) B2[i] = init_weight();
 
-    double hiddenLayerBias[numHiddenNodes];
-    double outputLayerBias[numOutputs];
+    double H[numHidden], O[numOutputs], dH[numHidden], dO[numOutputs];
+    int order[numSets] = {0,1,2,3};
 
-    double hiddenWeights[numInputs][numHiddenNodes];
-    double outputWeight[numHiddenNodes][numOutputs];
-
-    double training_inputs[numTrainingSets][numInputs] = {
-        {0.0f, 0.0f},
-        {1.0f, 0.0f},
-        {0.0f, 1.0f},
-        {1.0f, 1.0f}
-    };
-
-    double training_outputs[numTrainingSets][numOutputs] = {
-        {0.0f},
-        {1.0f},
-        {1.0f},
-        {0.0f}
-    };
-
-    for (int i = 0; i < numInputs; i++)
-        for (int j = 0; j < numHiddenNodes; j++)
-            hiddenWeights[i][j] = init_weights();
-
-    for (int i = 0; i < numHiddenNodes; i++)
-        for (int j = 0; j < numOutputs; j++)
-            outputWeight[i][j] = init_weights();
-
-    for (int i = 0; i < numHiddenNodes; i++)
-        hiddenLayerBias[i] = init_weights();
-
-    for (int i = 0; i < numOutputs; i++)
-        outputLayerBias[i] = init_weights();
-
-    int trainingSetOrder[] = {0,1,2,3};
-    int numberOfEpochs = 10000;
-
-    for(int epoch = 0; epoch < numberOfEpochs; epoch++)
+    for (int e = 0; e < epochs; ++e)
     {
-        double epochLoss = 0.0;
-        shuffle(trainingSetOrder, numTrainingSets);
-
-        for(int x = 0; x < numTrainingSets; x++)
+        shuffle(order, numSets);
+        double loss = 0.0;
+        for (int s = 0; s < numSets; ++s)
         {
-            int i = trainingSetOrder[x];
-
-            for(int j = 0; j < numHiddenNodes; j++)
+            int i = order[s];
+            mat_vec_mul(W1, X[i], H, numHidden, numInputs);
+            vec_add(H, B1, numHidden);
+            vec_sigmoid(H, numHidden);
+            mat_vec_mul(W2, H, O, numOutputs, numHidden);
+            vec_add(O, B2, numOutputs);
+            vec_sigmoid(O, numOutputs);
+            for (int j = 0; j < numOutputs; ++j)
             {
-                double activation = hiddenLayerBias[j];
-                for(int k = 0; k < numInputs; k++)
-                    activation += training_inputs[i][k] * hiddenWeights[k][j];
-                hiddenLayer[j] = sigmoid(activation);
+                double err = Y[i][j] - O[j]; dO[j] = err * dSigmoid(O[j]); loss += err * err;
             }
-
-            for(int j = 0; j < numOutputs; j++)
+            for (int j = 0; j < numHidden; ++j)
             {
-                double activation = outputLayerBias[j];
-                for(int k = 0; k < numHiddenNodes; k++)
-                    activation += hiddenLayer[k] * outputWeight[k][j];
-                outputLayer[j] = sigmoid(activation);
+                double err = 0.0; for (int k = 0; k < numOutputs; ++k) err += dO[k] * W2[k * numHidden + j]; dH[j] = err * dSigmoid(H[j]);
             }
-
-            double deltaOutput[numOutputs];
-            for(int j = 0; j < numOutputs; j++)
+            for (int j = 0; j < numOutputs; ++j)
             {
-                double error = (training_outputs[i][j] - outputLayer[j]);
-                deltaOutput[j] = error * dSigmoid(outputLayer[j]);
-                epochLoss += error * error;
+                B2[j] += dO[j] * lr; for (int k = 0; k < numHidden; ++k) W2[j * numHidden + k] += H[k] * dO[j] * lr;
             }
-
-            double deltaHidden[numHiddenNodes];
-            for(int j = 0; j < numHiddenNodes; j++)
+            for (int j = 0; j < numHidden; ++j)
             {
-                double error = 0.0f;
-                for(int k = 0; k < numOutputs; k++)
-                    error += deltaOutput[k] * outputWeight[j][k];
-                deltaHidden[j] = error * dSigmoid(hiddenLayer[j]);
-            }
-
-            for(int j = 0; j < numOutputs; j++)
-            {
-                outputLayerBias[j] += deltaOutput[j] * lr;
-                for(int k = 0; k < numHiddenNodes; k++)
-                    outputWeight[k][j] += hiddenLayer[k] * deltaOutput[j] * lr;
-            }
-
-            for(int j = 0; j < numHiddenNodes; j++)
-            {
-                hiddenLayerBias[j] += deltaHidden[j] * lr;
-                for(int k = 0; k < numInputs; k++)
-                    hiddenWeights[k][j] += training_inputs[i][k] * deltaHidden[j] * lr;
+                B1[j] += dH[j] * lr; for (int k = 0; k < numInputs; ++k) W1[j * numInputs + k] += X[i][k] * dH[j] * lr;
             }
         }
-
-        if (epoch % 100 == 0)
-            printf("Epoch %d loss: %g\n", epoch, epochLoss / numTrainingSets);
-
-        if ((epochLoss / numTrainingSets) < 1e-5)
+        if (e % 100 == 0)
+        {
+            printf("Epoch %d | Loss: %.8f\n", e, loss / numSets);
+        }
+        if (loss / numSets < 1e-5)
+        {
             break;
+        }
     }
-
-    fputs("Final Hidden Weights\n[", stdout);
-    for(int j = 0; j < numHiddenNodes; j++)
-    {
-        fputs("[  ", stdout);
-        for(int k = 0; k < numInputs; k++)
-            printf("%f ", hiddenWeights[k][j]);
-        fputs("] ", stdout);
-    }
-
-    fputs("]\nFinal Hidden Biases\n[ ", stdout);
-    for(int j = 0; j < numHiddenNodes; j++)
-        printf("%f ", hiddenLayerBias[j]);
-
-    fputs("]\nFinal Output Weights\n[", stdout);
-    for(int j = 0; j < numOutputs; j++)
-    {
-        fputs("[  ", stdout);
-        for(int k = 0; k < numHiddenNodes; k++)
-            printf("%f ", outputWeight[k][j]);
-        fputs("] \n", stdout);
-    }
-
-    fputs("]\nFinal Output Biases\n[ ", stdout);
-    for(int j = 0; j < numOutputs; j++)
-        printf("%f ", outputLayerBias[j]);
-    fputs("] \n", stdout);
 
     printf("\n--- TEST FINALE ---\n");
-    for (int i = 0; i < numTrainingSets; i++)
+    for (int i = 0; i < numSets; ++i)
     {
-        for (int j = 0; j < numHiddenNodes; j++)
-        {
-            double activation = hiddenLayerBias[j];
-            for (int k = 0; k < numInputs; k++)
-            {
-                activation += training_inputs[i][k] * hiddenWeights[k][j];
-                hiddenLayer[j] = sigmoid(activation);
-            }
-        }
-
-        for (int j = 0; j < numOutputs; j++)
-        {
-            double activation = outputLayerBias[j];
-            for (int k = 0; k < numHiddenNodes; k++)
-            {
-                activation += hiddenLayer[k] * outputWeight[k][j];
-            }
-            outputLayer[j] = sigmoid(activation);
-        }
-
-        printf("Input: %g, %g → Output previsto: %g\n",training_inputs[i][0], training_inputs[i][1], outputLayer[0]);
+        mat_vec_mul(W1, X[i], H, numHidden, numInputs);
+        vec_add(H, B1, numHidden);
+        vec_sigmoid(H, numHidden);
+        mat_vec_mul(W2, H, O, numOutputs, numHidden);
+        vec_add(O, B2, numOutputs);
+        vec_sigmoid(O, numOutputs);
+        printf("Input: %.1f %.1f → Output previsto: %.6f\n", X[i][0], X[i][1], O[0]);
     }
-    
+
+    getchar();
     return 0;
 }
 
-double init_weights()
-{
-    return ((double)rand() / (double)RAND_MAX) * 2.0 - 1.0;
+static inline double init_weight() 
+{ 
+    return ((double)rand() / RAND_MAX) * 2.0 - 1.0; 
 }
 
-double sigmoid(double x)
+static inline double sigmoid(double x)
 {
-    return 1.0 / (1.0 + exp(-x));
-}
-
-double dSigmoid(double x)
-{
-    return x * (1.0 - x);
-}
-
-void shuffle(int *array, size_t n)
-{
-    if (n > 1)
+    if (x < -60.0)
     {
-        for (size_t i = n - 1; i > 0; i--)
+        return 0.0;
+    }if (x > 60.0)
+    {
+     return 1.0;
+    }
+    return 1.0 / (1.0 + exp(-x)); 
+}
+
+static inline double dSigmoid(double y)
+{
+    return y * (1.0 - y);
+}
+
+static inline void shuffle(int *a, size_t n)
+{
+    for (size_t i = n - 1; i > 0; --i)
+    {
+        size_t j = rand() % (i + 1);
+        int t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+}
+static inline void mat_vec_mul(const double *m, const double *v, double *o, int r, int c)
+{
+    for (int i = 0; i < r; ++i)
+    {
+        double s = 0.0;
+        for (int j = 0; j < c; ++j)
         {
-            size_t j = rand() % (i + 1);
-            int t = array[j];
-            array[j] = array[i];
-            array[i] = t;
+            s += m[i * c + j] * v[j]; o[i] = s;
         }
+    }
+}
+
+static inline void vec_add(double *a, const double *b, int n)
+{
+    for (int i = 0; i < n; ++i)
+    {
+        a[i] += b[i];
+    }
+}
+
+static inline void vec_sigmoid(double *v, int n)
+{
+    for (int i = 0; i < n; ++i)
+    {
+        v[i] = sigmoid(v[i]);
     }
 }
