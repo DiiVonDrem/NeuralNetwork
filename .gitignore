@@ -1,0 +1,4 @@
+neural_net
+*.o
+*.exe
+*.json
