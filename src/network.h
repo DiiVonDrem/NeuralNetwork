@@ -2,14 +2,16 @@
 #define NETWORK_H
 
 typedef struct {
-    int inputs;
-    int hidden;
-    int outputs;
-    double **ih; // input -> hidden
-    double **ho; // hidden -> output
-    double *h;   // hidden activations
-    double *o;   // output activations
-    double lr;   // learning rate
+    int inputs, hidden, outputs;
+    double lr;
+
+    double **ih; // weight input → hidden
+    double **ho; // weight hidden → output
+    double *h;   // activ hidden
+    double *o;   // activ output
+
+    double *bh;  // bias hidden
+    double *bo;  // bias output
 } Net;
 
 Net *net_create(int in, int hid, int out, double lr);
