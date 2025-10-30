@@ -1,4 +1,5 @@
 neural_net
 .vscode/
+*.json
 *.o
 *.exe
