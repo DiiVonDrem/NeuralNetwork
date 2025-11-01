@@ -4,6 +4,8 @@
 #include "network.h"
 #include "mathutils.h"
 
+double result;
+
 Net *net_create(int in, int hid, int out, double lr) {
     Net *n = malloc(sizeof(Net));
     n->inputs = in;
@@ -105,7 +107,14 @@ void net_train(Net *n, double **data_in, double **data_out, int samples, int epo
     }
 }
 
-void net_show(Net *n, double *input) {
+void net_show(Net *n, double *input, int rule) {
     net_forward(n, input);
-    printf("[%.0f %.0f] -> %.3f\n", input[0], input[1], n->o[0]);
+    result = (n->o[0]);
+    if (rule == 1){
+        printf("[%.0f %.0f] -> %.3f\n", input[0], input[1], n->o[0]);
+    }
+}
+
+double answer(){
+    return result;
 }

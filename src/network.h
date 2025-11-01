@@ -2,6 +2,7 @@
 #define NETWORK_H
 
 typedef struct {
+    double result;
     int inputs, hidden, outputs;
     double lr;
 
@@ -18,6 +19,6 @@ Net *net_create(int in, int hid, int out, double lr);
 void net_free(Net *n);
 void net_forward(Net *n, double *input);
 void net_train(Net *n, double **data_in, double **data_out, int samples, int epochs);
-void net_show(Net *n, double *input);
-
+void net_show(Net *n, double *input, int rule);
+double answer();
 #endif

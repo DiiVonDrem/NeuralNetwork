@@ -5,7 +5,7 @@ CFLAGS = -Wall -O2 -lm
 # Cartella sorgenti
 SRC_DIR = src
 SRC = $(SRC_DIR)/main.c \
-      $(SRC_DIR)/network.c \
+	  $(SRC_DIR)/network.c \
       $(SRC_DIR)/mathutils.c \
       $(SRC_DIR)/json_io.c
 OBJ = $(SRC:.c=.o)

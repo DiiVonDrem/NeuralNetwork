@@ -67,13 +67,16 @@ static void skip_chars(const char **p){
 // Load from JSON
 int load_network_json(const char *filename, Net *n) {
     FILE *f = fopen(filename,"r");
-    if(!f) return 0;
+    if(!f) {
+        fprintf(stderr, "[WARN] File %s non trovato\n", filename);
+        return 0;
+    }
 
     fseek(f,0,SEEK_END);
     long size = ftell(f);
     fseek(f,0,SEEK_SET);
     char *buf = malloc(size+1);
-    if(!buf){ fclose(f); return 0; }
+    if(!buf){ fclose(f); fprintf(stderr,"[ERR] Memoria insufficiente\n"); return 0; }
     fread(buf,1,size,f);
     buf[size]='\0';
     fclose(f);
@@ -82,49 +85,79 @@ int load_network_json(const char *filename, Net *n) {
 
     // ih
     const char *ph = strstr(p,"\"ih\"");
-    if(!ph){ free(buf); return 0; }
-    p = strchr(ph,'[')+1;
+    if(!ph){ free(buf); fprintf(stderr,"[WARN] 'ih' non trovato\n"); return 0; }
+    const char *ptr = strchr(ph,'[');
+    if(!ptr){ free(buf); fprintf(stderr,"[WARN] '[' non trovato dopo 'ih'\n"); return 0; }
+    p = ptr+1;
+
     for(int i=0;i<n->hidden;i++){
-        p = strchr(p,'[')+1;
+        ptr = strchr(p,'[');
+        if(!ptr){ free(buf); fprintf(stderr,"[WARN] '[' non trovato in ih row %d\n", i); return 0; }
+        p = ptr+1;
         for(int j=0;j<n->inputs;j++){
             skip_chars(&p);
-            n->ih[i][j] = strtod(p,(char**)&p);
+            char *end;
+            n->ih[i][j] = strtod(p,&end);
+            if(p == end){ free(buf); fprintf(stderr,"[WARN] Numero non valido in ih[%d][%d]\n",i,j); return 0; }
+            p = end;
             skip_chars(&p);
         }
-        p = strchr(p,']')+1;
+        ptr = strchr(p,']');
+        if(!ptr){ free(buf); fprintf(stderr,"[WARN] ']' non trovato in ih row %d\n", i); return 0; }
+        p = ptr+1;
     }
 
     // ho
     const char *pho = strstr(p,"\"ho\"");
-    if(!pho){ free(buf); return 0; }
-    p = strchr(pho,'[')+1;
+    if(!pho){ free(buf); fprintf(stderr,"[WARN] 'ho' non trovato\n"); return 0; }
+    ptr = strchr(pho,'[');
+    if(!ptr){ free(buf); fprintf(stderr,"[WARN] '[' non trovato dopo 'ho'\n"); return 0; }
+    p = ptr+1;
+
     for(int i=0;i<n->outputs;i++){
-        p = strchr(p,'[')+1;
+        ptr = strchr(p,'[');
+        if(!ptr){ free(buf); fprintf(stderr,"[WARN] '[' non trovato in ho row %d\n", i); return 0; }
+        p = ptr+1;
         for(int j=0;j<n->hidden;j++){
             skip_chars(&p);
-            n->ho[i][j] = strtod(p,(char**)&p);
+            char *end;
+            n->ho[i][j] = strtod(p,&end);
+            if(p == end){ free(buf); fprintf(stderr,"[WARN] Numero non valido in ho[%d][%d]\n",i,j); return 0; }
+            p = end;
             skip_chars(&p);
         }
-        p = strchr(p,']')+1;
+        ptr = strchr(p,']');
+        if(!ptr){ free(buf); fprintf(stderr,"[WARN] ']' non trovato in ho row %d\n", i); return 0; }
+        p = ptr+1;
     }
 
     // bh
     const char *pbh = strstr(p,"\"bh\"");
-    if(!pbh){ free(buf); return 0; }
-    p = strchr(pbh,'[')+1;
+    if(!pbh){ free(buf); fprintf(stderr,"[WARN] 'bh' non trovato\n"); return 0; }
+    ptr = strchr(pbh,'[');
+    if(!ptr){ free(buf); fprintf(stderr,"[WARN] '[' non trovato dopo 'bh'\n"); return 0; }
+    p = ptr+1;
     for(int i=0;i<n->hidden;i++){
         skip_chars(&p);
-        n->bh[i] = strtod(p,(char**)&p);
+        char *end;
+        n->bh[i] = strtod(p,&end);
+        if(p == end){ free(buf); fprintf(stderr,"[WARN] Numero non valido in bh[%d]\n",i); return 0; }
+        p = end;
         skip_chars(&p);
     }
 
     // bo
     const char *pbo = strstr(p,"\"bo\"");
-    if(!pbo){ free(buf); return 0; }
-    p = strchr(pbo,'[')+1;
+    if(!pbo){ free(buf); fprintf(stderr,"[WARN] 'bo' non trovato\n"); return 0; }
+    ptr = strchr(pbo,'[');
+    if(!ptr){ free(buf); fprintf(stderr,"[WARN] '[' non trovato dopo 'bo'\n"); return 0; }
+    p = ptr+1;
     for(int i=0;i<n->outputs;i++){
         skip_chars(&p);
-        n->bo[i] = strtod(p,(char**)&p);
+        char *end;
+        n->bo[i] = strtod(p,&end);
+        if(p == end){ free(buf); fprintf(stderr,"[WARN] Numero non valido in bo[%d]\n",i); return 0; }
+        p = end;
         skip_chars(&p);
     }
 
